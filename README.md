@@ -32,10 +32,10 @@ Genera la llave de Laravel:
 docker compose exec app php artisan key:generate
 ```
 
-Ejecuta las migraciones:
+Ejecuta las migraciones y seeders:
 
 ```bash
-docker compose exec app php artisan migrate
+docker compose exec app php artisan migrate --seed
 ```
 
 Abre la aplicacion en:
@@ -100,6 +100,7 @@ Ejecutar Artisan:
 
 ```bash
 docker compose exec app php artisan migrate
+docker compose exec app php artisan migrate --seed
 docker compose exec app php artisan route:list
 docker compose exec app php artisan test
 ```
@@ -160,5 +161,5 @@ Usa `down -v` solo si quieres eliminar el volumen `mysql-data` y reiniciar la ba
 1. Inicia Docker Desktop.
 2. Ejecuta `docker compose --env-file .env.docker up -d --build`.
 3. Ejecuta `docker compose exec app php artisan key:generate` la primera vez.
-4. Ejecuta `docker compose exec app php artisan migrate`.
+4. Ejecuta `docker compose exec app php artisan migrate --seed`.
 5. Trabaja desde `http://localhost:8000`.
