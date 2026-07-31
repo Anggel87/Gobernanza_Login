@@ -17,9 +17,10 @@
     <script>
         const payload = @json($payload);
         const redirectUri = @json($redirectUri);
+        const targetOrigin = @json($targetOrigin);
 
         if (window.opener) {
-            window.opener.postMessage({ type: 'governance_auth', data: payload }, '*');
+            window.opener.postMessage({ type: 'governance_auth', data: payload }, targetOrigin);
             window.close();
         } else if (redirectUri) {
             const url = new URL(redirectUri);

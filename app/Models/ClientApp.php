@@ -7,7 +7,7 @@ use Illuminate\Support\Str;
 
 class ClientApp extends Model
 {
-    protected $fillable = ['name', 'slug', 'api_key', 'api_secret', 'active', 'last_used_at'];
+    protected $fillable = ['name', 'slug', 'api_key', 'api_secret', 'active', 'last_used_at', 'allowed_redirect_uris'];
 
     protected $hidden = ['api_secret'];
 
@@ -16,6 +16,7 @@ class ClientApp extends Model
         return [
             'active' => 'boolean',
             'last_used_at' => 'datetime',
+            'allowed_redirect_uris' => 'array',
         ];
     }
 

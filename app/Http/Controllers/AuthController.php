@@ -41,7 +41,7 @@ class AuthController extends Controller
         return ApiResponse::success([
             'token' => $token,
             'token_type' => 'Bearer',
-            'user' => $this->serializeUser($user),
+            'user' => $this->serializeUser($user->loadMissing('role')),
         ], 'Login exitoso.');
     }
 
@@ -76,6 +76,13 @@ class AuthController extends Controller
         ], 'Token renovado con exito.');
     }
 
+    public function me(Request $request)
+    {
+        return ApiResponse::success([
+            'user' => $this->serializeUser($request->user()->loadMissing('role')),
+        ], 'Usuario autenticado.');
+    }
+
     public function issueToken(User $user, ?ClientApp $clientApp = null, string $deviceName = 'web'): string
     {
         $clientSlug = $clientApp?->slug ?? 'governance';
@@ -90,6 +97,7 @@ class AuthController extends Controller
             'id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
+            'role' => $user->role?->key_name,
         ];
     }
 }

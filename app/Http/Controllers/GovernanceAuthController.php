@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\ClientApp;
 use App\Models\User;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
@@ -50,11 +51,18 @@ class GovernanceAuthController extends Controller
         ]);
 
         $clientApp = ClientApp::where('api_key', $data['client_id'])->where('active', true)->firstOrFail();
+        $redirectUri = $data['redirect_uri'] ?? null;
+
+        if (! $redirectUri || ! $this->isAllowedRedirectUri($clientApp, $redirectUri)) {
+            throw new HttpResponseException(response()->view('errors.governance-client', [
+                'message' => 'Esta aplicacion no esta autorizada para abrir el login de gobernanza.',
+            ], 403));
+        }
 
         return [
             'clientApp' => $clientApp,
             'clientId' => $data['client_id'],
-            'redirectUri' => $data['redirect_uri'] ?? null,
+            'redirectUri' => $redirectUri,
         ];
     }
 
@@ -69,6 +77,38 @@ class GovernanceAuthController extends Controller
         return view('governance.token', [
             'payload' => $payload,
             'redirectUri' => $request->input('redirect_uri'),
+            'targetOrigin' => $this->originFromUrl($request->input('redirect_uri')),
         ]);
+    }
+
+    private function isAllowedRedirectUri(ClientApp $clientApp, string $redirectUri): bool
+    {
+        $allowedRedirectUris = $clientApp->allowed_redirect_uris ?? [];
+
+        return collect($allowedRedirectUris)->contains(function (string $allowedUri) use ($redirectUri): bool {
+            return rtrim($allowedUri, '/') === rtrim($redirectUri, '/')
+                || $this->originFromUrl($allowedUri) === $this->originFromUrl($redirectUri);
+        });
+    }
+
+    private function originFromUrl(?string $url): ?string
+    {
+        if (! $url) {
+            return null;
+        }
+
+        $parts = parse_url($url);
+
+        if (! isset($parts['scheme'], $parts['host'])) {
+            return null;
+        }
+
+        $origin = $parts['scheme'].'://'.$parts['host'];
+
+        if (isset($parts['port'])) {
+            $origin .= ':'.$parts['port'];
+        }
+
+        return $origin;
     }
 }

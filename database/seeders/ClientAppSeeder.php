@@ -17,6 +17,10 @@ class ClientAppSeeder extends Seeder
                 'api_key' => env('GOVERNANCE_WEB_CLIENT_ID', 'governance-web-local'),
                 'api_secret' => Hash::make(env('GOVERNANCE_WEB_CLIENT_SECRET', 'governance-web-secret')),
                 'active' => true,
+                'allowed_redirect_uris' => [
+                    env('CHECKMATE_WEB_URL', 'http://localhost:4200'),
+                    env('CHECKMATE_WEB_CALLBACK_URL', 'http://localhost:4200/auth/callback'),
+                ],
             ],
         );
 
@@ -27,6 +31,7 @@ class ClientAppSeeder extends Seeder
                 'api_key' => env('GOVERNANCE_MOBILE_CLIENT_ID', 'governance-mobile-local'),
                 'api_secret' => Hash::make(env('GOVERNANCE_MOBILE_CLIENT_SECRET', 'governance-mobile-secret')),
                 'active' => true,
+                'allowed_redirect_uris' => [],
             ],
         );
     }
