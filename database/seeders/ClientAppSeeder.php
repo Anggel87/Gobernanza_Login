@@ -20,6 +20,7 @@ class ClientAppSeeder extends Seeder
                 'allowed_redirect_uris' => [
                     env('CHECKMATE_WEB_URL', 'http://localhost:4200'),
                     env('CHECKMATE_WEB_CALLBACK_URL', 'http://localhost:4200/auth/callback'),
+                    env('CHECKMATE_WEB_PORTAL_URL', 'http://localhost:4200/portal'),
                 ],
             ],
         );

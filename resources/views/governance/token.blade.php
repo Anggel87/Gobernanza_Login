@@ -10,24 +10,8 @@
     <main class="flex min-h-screen items-center justify-center px-4">
         <section class="w-full max-w-md rounded-lg bg-white p-6 text-center shadow-xl ring-1 ring-gray-200">
             <h1 class="text-xl font-semibold">Autenticacion completada</h1>
-            <p class="mt-2 text-sm text-gray-600">Puedes volver a la aplicacion.</p>
+            <p class="mt-2 text-sm text-gray-600">Seras redirigido a la aplicacion autorizada.</p>
         </section>
     </main>
-
-    <script>
-        const payload = @json($payload);
-        const redirectUri = @json($redirectUri);
-        const targetOrigin = @json($targetOrigin);
-
-        if (window.opener) {
-            window.opener.postMessage({ type: 'governance_auth', data: payload }, targetOrigin);
-            window.close();
-        } else if (redirectUri) {
-            const url = new URL(redirectUri);
-            url.searchParams.set('token', payload.token);
-            url.searchParams.set('token_type', payload.token_type);
-            window.location.replace(url.toString());
-        }
-    </script>
 </body>
 </html>

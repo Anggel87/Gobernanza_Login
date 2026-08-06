@@ -21,6 +21,7 @@ Route::middleware('auth')->group(function () {
 Route::prefix('governance')->name('governance.')->group(function () {
     Route::get('/auth', [GovernanceAuthController::class, 'show'])->name('auth.show');
     Route::post('/auth/login', [GovernanceAuthController::class, 'login'])->name('auth.login');
+    Route::get('/logout', [GovernanceAuthController::class, 'logout'])->name('auth.logout');
 });
 
 require __DIR__.'/auth.php';

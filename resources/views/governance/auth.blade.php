@@ -77,6 +77,7 @@
                         @csrf
                         <input type="hidden" name="client_id" value="{{ $clientId }}">
                         <input type="hidden" name="redirect_uri" value="{{ $redirectUri }}">
+                        <input type="hidden" name="returnUrl" value="{{ $returnUrl }}">
 
                         <div>
                             <label for="login_email" class="block text-xs font-bold uppercase tracking-wide text-[#595359]">

@@ -14,7 +14,11 @@ function clientApp(array $overrides = []): array
         'api_key' => 'client-key',
         'api_secret' => Hash::make($secret),
         'active' => true,
-        'allowed_redirect_uris' => ['http://localhost:4200', 'http://localhost:4200/auth/callback'],
+        'allowed_redirect_uris' => [
+            'http://localhost:4200',
+            'http://localhost:4200/auth/callback',
+            'http://localhost:4200/portal',
+        ],
     ], $overrides));
 
     return [$app, $secret];
@@ -130,23 +134,70 @@ test('authenticated token can resolve current user', function () {
         ->assertJsonPath('data.user.role', 'alumno');
 });
 
-test('web popup auth screen can be rendered for active client', function () {
+test('web redirect auth screen can be rendered for active client', function () {
     [$client] = clientApp();
 
     $this
-        ->get('/governance/auth?client_id='.$client->api_key.'&redirect_uri=http://localhost:4200/auth/callback')
+        ->get('/login?client_id='.$client->api_key.'&returnUrl=http://localhost:4200/portal')
         ->assertOk()
         ->assertSee('Bienvenido de nuevo')
         ->assertDontSee('Registrarse');
 });
 
-test('web popup auth screen rejects untrusted redirect uri', function () {
+test('web redirect auth screen rejects untrusted return url', function () {
     [$client] = clientApp();
 
     $this
-        ->get('/governance/auth?client_id='.$client->api_key.'&redirect_uri=http://evil.test/auth/callback')
+        ->get('/login?client_id='.$client->api_key.'&returnUrl=http://evil.test/portal')
         ->assertForbidden()
         ->assertSee('Acceso no autorizado');
+});
+
+test('web redirect login returns one time code and exchanges it for bearer token', function () {
+    [$client] = clientApp();
+    seedGovernanceRoles();
+
+    $role = Role::where('key_name', 'profesor')->first();
+    $user = User::factory()->create(['role_id' => $role->id]);
+
+    $response = $this
+        ->from('/login?client_id='.$client->api_key.'&returnUrl=http://localhost:4200/portal')
+        ->post('/governance/auth/login', [
+            'client_id' => $client->api_key,
+            'returnUrl' => 'http://localhost:4200/portal',
+            'email' => $user->email,
+            'password' => 'password',
+        ]);
+
+    $response->assertRedirect();
+    $redirectUrl = $response->headers->get('Location');
+    parse_str((string) parse_url($redirectUrl, PHP_URL_QUERY), $query);
+
+    expect($redirectUrl)->toStartWith('http://localhost:4200/portal?code=');
+    expect($query['code'] ?? null)->not->toBeNull();
+
+    $this
+        ->postJson('/api/v1/auth/exchange-code', [
+            'client_id' => $client->api_key,
+            'return_url' => 'http://localhost:4200/portal',
+            'code' => $query['code'],
+            'device_name' => 'web-redirect',
+        ])
+        ->assertOk()
+        ->assertJsonPath('data.token_type', 'Bearer')
+        ->assertJsonPath('data.user.email', $user->email)
+        ->assertJsonPath('data.user.role', 'profesor')
+        ->assertJsonStructure(['data' => ['token']]);
+
+    $this
+        ->postJson('/api/v1/auth/exchange-code', [
+            'client_id' => $client->api_key,
+            'return_url' => 'http://localhost:4200/portal',
+            'code' => $query['code'],
+            'device_name' => 'web-redirect',
+        ])
+        ->assertUnauthorized()
+        ->assertJsonPath('code', 'AUTH09');
 });
 
 test('trusted api client can create governance users by role', function () {

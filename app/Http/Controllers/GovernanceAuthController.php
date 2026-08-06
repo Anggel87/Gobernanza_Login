@@ -6,6 +6,7 @@ use App\Models\ClientApp;
 use App\Models\User;
 use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 
 class GovernanceAuthController extends Controller
@@ -40,7 +41,23 @@ class GovernanceAuthController extends Controller
             return back()->withErrors(['email' => 'Tu cuenta aun no ha sido verificada. Revisa tu correo.'])->withInput();
         }
 
-        return $this->tokenResponse($request, $authController, $user, $context['clientApp']);
+        return $this->redirectWithCodeResponse(
+            $authController,
+            $user,
+            $context['clientApp'],
+            $context['returnUrl'],
+        );
+    }
+
+    public function logout(Request $request)
+    {
+        $context = $this->context($request);
+
+        Auth::guard('web')->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        return redirect()->away($context['returnUrl']);
     }
 
     private function context(Request $request): array
@@ -48,12 +65,14 @@ class GovernanceAuthController extends Controller
         $data = $request->validate([
             'client_id' => ['required', 'string', 'exists:client_apps,api_key'],
             'redirect_uri' => ['nullable', 'url'],
+            'returnUrl' => ['nullable', 'url'],
+            'return_url' => ['nullable', 'url'],
         ]);
 
         $clientApp = ClientApp::where('api_key', $data['client_id'])->where('active', true)->firstOrFail();
-        $redirectUri = $data['redirect_uri'] ?? null;
+        $returnUrl = $data['returnUrl'] ?? $data['return_url'] ?? $data['redirect_uri'] ?? null;
 
-        if (! $redirectUri || ! $this->isAllowedRedirectUri($clientApp, $redirectUri)) {
+        if (! $returnUrl || ! $this->isAllowedRedirectUri($clientApp, $returnUrl)) {
             throw new HttpResponseException(response()->view('errors.governance-client', [
                 'message' => 'Esta aplicacion no esta autorizada para abrir el login de gobernanza.',
             ], 403));
@@ -62,23 +81,37 @@ class GovernanceAuthController extends Controller
         return [
             'clientApp' => $clientApp,
             'clientId' => $data['client_id'],
-            'redirectUri' => $redirectUri,
+            'redirectUri' => $data['redirect_uri'] ?? null,
+            'returnUrl' => $returnUrl,
         ];
     }
 
-    private function tokenResponse(Request $request, AuthController $authController, User $user, ClientApp $clientApp)
+    private function redirectWithCodeResponse(
+        AuthController $authController,
+        User $user,
+        ClientApp $clientApp,
+        string $returnUrl,
+    )
     {
-        $payload = [
-            'token' => $authController->issueToken($user, $clientApp, 'web-popup'),
-            'token_type' => 'Bearer',
-            'user' => $authController->serializeUser($user),
-        ];
+        $code = $authController->issueRedirectCode($user, $clientApp, $returnUrl);
 
-        return view('governance.token', [
-            'payload' => $payload,
-            'redirectUri' => $request->input('redirect_uri'),
-            'targetOrigin' => $this->originFromUrl($request->input('redirect_uri')),
-        ]);
+        return redirect()->away($this->appendQuery($returnUrl, ['code' => $code]));
+    }
+
+    private function appendQuery(string $url, array $query): string
+    {
+        [$urlWithoutFragment, $fragment] = array_pad(explode('#', $url, 2), 2, null);
+        [$baseUrl, $existingQueryString] = array_pad(explode('?', $urlWithoutFragment, 2), 2, '');
+        $existingQuery = [];
+
+        if ($existingQueryString !== '') {
+            parse_str($existingQueryString, $existingQuery);
+        }
+
+        $queryString = http_build_query(array_merge($existingQuery, $query));
+        $fragmentSuffix = $fragment ? '#'.$fragment : '';
+
+        return $baseUrl.'?'.$queryString.$fragmentSuffix;
     }
 
     private function isAllowedRedirectUri(ClientApp $clientApp, string $redirectUri): bool
